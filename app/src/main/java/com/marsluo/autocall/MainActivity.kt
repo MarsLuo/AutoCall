@@ -1,10 +1,12 @@
 package com.marsluo.autocall
 
 import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import android.widget.Toast
@@ -48,7 +50,12 @@ class MainActivity : AppCompatActivity() {
         // 设置开始按钮点击事件
         binding.startButton.setOnClickListener {
             if (!isCalling) {
-                startCalling()
+                if (isAccessibilityServiceEnabled()) {
+                    startCalling()
+                } else {
+                    Toast.makeText(this, "请先启用无障碍服务", Toast.LENGTH_SHORT).show()
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
             } else {
                 stopCalling()
             }
@@ -56,6 +63,23 @@ class MainActivity : AppCompatActivity() {
 
         // 检查权限
         checkPermissions()
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val accessibilityEnabled = Settings.Secure.getInt(
+            contentResolver,
+            Settings.Secure.ACCESSIBILITY_ENABLED,
+            0
+        ) == 1
+
+        if (accessibilityEnabled) {
+            val service = Settings.Secure.getString(
+                contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            return service?.contains(packageName) == true
+        }
+        return false
     }
 
     private fun checkPermissions() {
@@ -146,10 +170,8 @@ class MainActivity : AppCompatActivity() {
             override fun run() {
                 runOnUiThread {
                     if (isCalling) {
-                        // 这里需要实现挂断电话的逻辑
-                        // 注意：Android 10及以上版本不允许直接挂断电话
-                        // 需要用户手动挂断
-                        binding.statusText.text = "请手动挂断电话，准备下一次拨打..."
+                        // 无障碍服务会自动挂断电话
+                        binding.statusText.text = "正在自动挂断电话..."
                     }
                 }
             }
